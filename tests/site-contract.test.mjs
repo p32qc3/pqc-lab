@@ -23,3 +23,17 @@ test('loads only local styles and modules', async () => {
   assert.match(html, /src="\.\/app\.js"/);
   assert.match(html, /src="\.\/game\.js"/);
 });
+
+test('defines the approved neon palette and responsive safeguards', async () => {
+  const css = await readFile(new URL('../site/styles.css', import.meta.url), 'utf8');
+  assert.match(css, /--cyan:\s*#00eaff/i);
+  assert.match(css, /--magenta:\s*#ff36a5/i);
+  assert.match(css, /@media\s*\(max-width:\s*760px\)/i);
+  assert.match(css, /prefers-reduced-motion:\s*reduce/i);
+});
+
+test('provides keyboard navigation landmarks', async () => {
+  const html = await readFile(indexUrl, 'utf8');
+  assert.match(html, /class="skip-link"/);
+  assert.match(html, /aria-label="主要导航"/);
+});

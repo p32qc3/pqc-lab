@@ -2,3 +2,4 @@
 work/
 .worktrees/
 output/playwright/
+.playwright-cli/

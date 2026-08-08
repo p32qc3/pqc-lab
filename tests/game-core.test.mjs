@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createGame,
+  duck,
   jump,
   rectsOverlap,
   startGame,
@@ -24,10 +25,22 @@ test('jump applies upward velocity once while grounded', () => {
   assert.deepEqual(jump(airborne), airborne);
 });
 
+test('ducking lowers the collision body so flying wires can pass overhead', () => {
+  const wire = { type: 'flying-wire', x: 125, y: 36, width: 58, height: 14 };
+  const standing = {
+    ...startGame(createGame({ seed: 7 })),
+    obstacles: [wire],
+  };
+  const crouched = duck(standing, true);
+
+  assert.equal(stepGame(standing, 16).phase, 'over');
+  assert.equal(stepGame(crouched, 16).phase, 'running');
+});
+
 test('time advances score and speed without tunnelling through frames', () => {
   const running = {
     ...startGame(createGame({ seed: 7 })),
-    obstacles: [{ x: 5000, y: 0, width: 28, height: 48 }],
+    obstacles: [{ type: 'scrap-chip', x: 5000, y: 0, width: 28, height: 48 }],
   };
   const later = stepGame(running, 5000);
   assert.equal(Math.floor(later.score), 50);
@@ -53,7 +66,7 @@ test('paused games do not advance', () => {
 test('colliding with an obstacle ends the run', () => {
   const running = {
     ...startGame(createGame({ seed: 7 })),
-    obstacles: [{ x: 125, y: 0, width: 30, height: 50 }],
+    obstacles: [{ type: 'scrap-chip', x: 125, y: 0, width: 30, height: 50 }],
   };
   assert.equal(stepGame(running, 16).phase, 'over');
 });
@@ -62,4 +75,13 @@ test('identical seeds produce identical obstacle sequences', () => {
   const first = stepGame({ ...startGame(createGame({ seed: 42 })), obstacles: [] }, 1000);
   const second = stepGame({ ...startGame(createGame({ seed: 42 })), obstacles: [] }, 1000);
   assert.deepEqual(first.obstacles, second.obstacles);
+});
+
+test('generated obstacles include ground and airborne hazards', () => {
+  const later = stepGame({ ...startGame(createGame({ seed: 19 })), obstacles: [] }, 8000);
+  const types = new Set(later.obstacles.map((obstacle) => obstacle.type));
+
+  assert.ok(types.has('scrap-chip') || types.has('e-waste'));
+  assert.ok(types.has('flying-wire') || types.has('laser-line'));
+  assert.ok(later.obstacles.some((obstacle) => obstacle.y > 0));
 });

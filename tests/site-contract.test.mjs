@@ -6,14 +6,19 @@ const indexUrl = new URL('../site/index.html', import.meta.url);
 
 test('publishes every approved section and game control', async () => {
   const html = await readFile(indexUrl, 'utf8');
-  for (const id of ['projects', 'game', 'skills', 'awards', 'runner-canvas', 'game-start', 'game-pause']) {
+  for (const id of ['projects', 'game', 'skills', 'awards', 'runner-canvas', 'game-start', 'game-pause', 'game-duck']) {
     assert.match(html, new RegExp(`id=["']${id}["']`), `missing #${id}`);
   }
 });
 
-test('keeps common private fields and external resources out of the public page', async () => {
+test('publishes approved identity and project link only', async () => {
   const html = await readFile(indexUrl, 'utf8');
-  assert.doesNotMatch(html, /GPA|学校|学院|电话|邮箱|所在地|1[3-9]\d{9}|mailto:|https?:\/\//i);
+  assert.match(html, /潘泉承/);
+  assert.match(html, /上海理工大学/);
+  assert.match(html, /panquancheng2006@163\.com/);
+  assert.match(html, /mailto:panquancheng2006@163\.com/);
+  assert.match(html, /https:\/\/github\.com\/p32qc3\/Edgi-Talk/);
+  assert.doesNotMatch(html, /GPA|光电信息与计算机工程学院|15187908848|2846355673@qq\.com|所在|地址/i);
   assert.match(html, /PQC\.LAB/);
 });
 
@@ -36,4 +41,14 @@ test('provides keyboard navigation landmarks', async () => {
   const html = await readFile(indexUrl, 'utf8');
   assert.match(html, /class="skip-link"/);
   assert.match(html, /aria-label="主要导航"/);
+});
+
+test('keeps background interaction static and local only', async () => {
+  const html = await readFile(indexUrl, 'utf8');
+  const app = await readFile(new URL('../site/app.js', import.meta.url), 'utf8');
+  const game = await readFile(new URL('../site/game.js', import.meta.url), 'utf8');
+
+  assert.match(html, /class="circuit-backdrop"/);
+  assert.match(app, /--signal-x/);
+  assert.doesNotMatch(`${html}\n${app}\n${game}`, /\bfetch\s*\(|WebSocket|EventSource/i);
 });

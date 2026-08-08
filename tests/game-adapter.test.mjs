@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   createHighScoreStore,
   formatScore,
+  isDuckCommand,
   isJumpCommand,
 } from '../site/game-adapter.js';
 
@@ -34,6 +35,12 @@ test('jump command accepts first Space or ArrowUp press only', () => {
   assert.equal(isJumpCommand({ code: 'ArrowUp', repeat: false }), true);
   assert.equal(isJumpCommand({ code: 'Space', repeat: true }), false);
   assert.equal(isJumpCommand({ code: 'Enter', repeat: false }), false);
+});
+
+test('duck command accepts ArrowDown without repeat', () => {
+  assert.equal(isDuckCommand({ code: 'ArrowDown', repeat: false }), true);
+  assert.equal(isDuckCommand({ code: 'ArrowDown', repeat: true }), false);
+  assert.equal(isDuckCommand({ code: 'Space', repeat: false }), false);
 });
 
 test('score display is padded and integer-only', () => {

@@ -18,6 +18,8 @@ test('publishes approved identity and project link only', async () => {
   assert.match(html, /panquancheng2006@163\.com/);
   assert.match(html, /mailto:panquancheng2006@163\.com/);
   assert.match(html, /https:\/\/github\.com\/p32qc3\/Edgi-Talk/);
+  assert.match(html, /东部赛区二等奖/);
+  assert.doesNotMatch(html, /东部赛区三等奖/);
   assert.doesNotMatch(html, /GPA|光电信息与计算机工程学院|15187908848|2846355673@qq\.com|所在|地址/i);
   assert.match(html, /PQC\.LAB/);
 });

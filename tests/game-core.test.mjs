@@ -37,6 +37,20 @@ test('ducking lowers the collision body so flying wires can pass overhead', () =
   assert.equal(stepGame(crouched, 16).phase, 'running');
 });
 
+test('jumping into flying hazards still ends the run', () => {
+  const jumping = {
+    ...jump(startGame(createGame({ seed: 7 }))),
+    player: {
+      ...jump(startGame(createGame({ seed: 7 }))).player,
+      y: 90,
+      velocityY: 600,
+    },
+    obstacles: [{ type: 'laser-line', x: 125, y: 42, width: 74, height: 10 }],
+  };
+
+  assert.equal(stepGame(jumping, 16).phase, 'over');
+});
+
 test('time advances score and speed without tunnelling through frames', () => {
   const running = {
     ...startGame(createGame({ seed: 7 })),

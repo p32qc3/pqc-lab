@@ -26,6 +26,7 @@ const browser = await chromium.launch({
   headless: true,
   executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined,
 });
+
 try {
   await waitForServer();
   const desktop = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
@@ -37,9 +38,19 @@ try {
   for (const id of ['projects', 'game', 'skills', 'awards']) {
     assert.equal(await desktop.locator(`#${id}`).count(), 1, `missing #${id}`);
   }
+
+  await desktop.mouse.move(1200, 120);
+  await desktop.waitForTimeout(80);
+  assert.notEqual(
+    await desktop.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--signal-x').trim()),
+    '50%',
+  );
+
   await desktop.locator('#game-start').click();
   await desktop.keyboard.press('Space');
+  await desktop.keyboard.press('ArrowDown');
   await desktop.waitForTimeout(180);
+  await desktop.keyboard.up('ArrowDown');
   assert.match(await desktop.locator('#game-status').innerText(), /游戏进行中/);
   assert.equal(await desktop.evaluate(() => {
     const canvas = document.querySelector('#runner-canvas');
@@ -53,6 +64,7 @@ try {
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   await mobile.goto('http://127.0.0.1:4173', { waitUntil: 'networkidle' });
   await mobile.locator('#runner-canvas').tap();
+  await mobile.locator('#game-duck').tap();
   await mobile.waitForTimeout(180);
   assert.match(await mobile.locator('#game-status').innerText(), /游戏进行中/);
   assert.equal(await mobile.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), true);

@@ -1,5 +1,6 @@
 import {
   createGame,
+  duck,
   jump,
   startGame,
   stepGame,
@@ -8,12 +9,14 @@ import {
 import {
   createHighScoreStore,
   formatScore,
+  isDuckCommand,
   isJumpCommand,
 } from './game-adapter.js';
 
 const canvas = document.querySelector('#runner-canvas');
 const context = canvas.getContext('2d');
 const startButton = document.querySelector('#game-start');
+const duckButton = document.querySelector('#game-duck');
 const pauseButton = document.querySelector('#game-pause');
 const status = document.querySelector('#game-status');
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -43,23 +46,24 @@ function drawGrid(elapsed) {
   context.restore();
 }
 
-function drawSkyline() {
-  const buildings = [
-    [0, 70, 74], [78, 44, 102], [128, 90, 58], [222, 54, 94],
-    [280, 76, 66], [360, 48, 112], [412, 92, 52], [510, 58, 83],
-    [572, 42, 118], [620, 88, 62], [714, 56, 97], [776, 72, 70],
-    [854, 50, 108], [910, 68, 76],
+function drawChipSkyline() {
+  const traces = [
+    [20, 246, 90, 246, 90, 214],
+    [168, 268, 238, 268, 238, 230],
+    [420, 254, 520, 254, 520, 218],
+    [680, 262, 782, 262, 782, 226],
   ];
   context.save();
-  context.fillStyle = 'rgba(29,22,62,.58)';
-  for (const [x, width, height] of buildings) {
-    context.fillRect(x, state.config.groundY - height, width, height);
-    context.fillStyle = 'rgba(255,54,165,.18)';
-    for (let windowY = state.config.groundY - height + 12; windowY < state.config.groundY - 8; windowY += 18) {
-      context.fillRect(x + 10, windowY, 4, 7);
-      if (width > 60) context.fillRect(x + 28, windowY, 4, 7);
-    }
-    context.fillStyle = 'rgba(29,22,62,.58)';
+  context.strokeStyle = 'rgba(0,234,255,.18)';
+  context.lineWidth = 2;
+  for (const [x1, y1, x2, y2, x3, y3] of traces) {
+    context.beginPath();
+    context.moveTo(x1, y1);
+    context.lineTo(x2, y2);
+    context.lineTo(x3, y3);
+    context.stroke();
+    context.fillStyle = 'rgba(255,54,165,.32)';
+    context.fillRect(x3 - 4, y3 - 4, 8, 8);
   }
   context.restore();
 }
@@ -77,8 +81,10 @@ function drawMoon() {
 }
 
 function drawRunner(player) {
+  const ducking = player.ducking;
+  const bodyHeight = ducking ? 24 : 47;
   const x = player.x;
-  const y = state.config.groundY - player.y - player.height;
+  const y = state.config.groundY - player.y - bodyHeight;
   const legPhase = state.phase === 'running' && player.y === 0
     ? Math.floor(state.elapsed / 90) % 2
     : 0;
@@ -87,30 +93,86 @@ function drawRunner(player) {
   context.fillStyle = '#00eaff';
   context.shadowColor = '#00eaff';
   context.shadowBlur = 14;
-  context.fillRect(x + 7, y + 16, 29, 23);
-  context.fillRect(x + 28, y + 3, 22, 18);
-  context.fillRect(x + 12, y + 37, 6, legPhase ? 7 : 11);
-  context.fillRect(x + 31, y + 37, 6, legPhase ? 11 : 7);
+
+  if (ducking) {
+    context.fillRect(x + 6, y + 7, 42, 18);
+    context.fillRect(x + 34, y, 16, 12);
+    context.fillRect(x + 10, y + 23, 24, 5);
+  } else {
+    context.fillRect(x + 7, y + 16, 29, 23);
+    context.fillRect(x + 28, y + 3, 22, 18);
+    context.fillRect(x + 12, y + 37, 6, legPhase ? 7 : 11);
+    context.fillRect(x + 31, y + 37, 6, legPhase ? 11 : 7);
+  }
+
   context.fillStyle = '#08061c';
-  context.fillRect(x + 42, y + 8, 4, 4);
+  context.fillRect(x + 42, y + (ducking ? 4 : 8), 4, 4);
   context.fillStyle = '#ff36a5';
-  context.fillRect(x - 4, y + 22, 14, 5);
-  context.fillRect(x + 13, y + 21, 7, 3);
+  context.fillRect(x - 4, y + (ducking ? 13 : 22), 14, 5);
+  context.fillRect(x + 13, y + (ducking ? 12 : 21), 7, 3);
   context.restore();
 }
 
-function drawObstacle(obstacle) {
-  const y = state.config.groundY - obstacle.height;
-  context.save();
-  context.fillStyle = '#ff36a5';
-  context.shadowColor = '#ff36a5';
-  context.shadowBlur = 14;
+function drawScrapChip(obstacle, y) {
   context.fillRect(obstacle.x, y, obstacle.width, obstacle.height);
   context.shadowBlur = 0;
   context.strokeStyle = 'rgba(246,244,255,.55)';
   context.strokeRect(obstacle.x + 5, y + 5, Math.max(2, obstacle.width - 10), Math.max(4, obstacle.height - 10));
   context.fillStyle = '#08061c';
-  context.fillRect(obstacle.x + obstacle.width * .35, y, 3, obstacle.height);
+  for (let pin = 4; pin < obstacle.width - 4; pin += 8) {
+    context.fillRect(obstacle.x + pin, y - 4, 4, 4);
+    context.fillRect(obstacle.x + pin, y + obstacle.height, 4, 4);
+  }
+}
+
+function drawEWaste(obstacle, y) {
+  context.fillRect(obstacle.x, y + 8, obstacle.width, obstacle.height - 8);
+  context.fillStyle = '#00eaff';
+  context.fillRect(obstacle.x + 8, y, 7, obstacle.height);
+  context.fillRect(obstacle.x + obstacle.width - 16, y + 4, 7, obstacle.height - 4);
+  context.fillStyle = '#08061c';
+  context.fillRect(obstacle.x + 18, y + 17, 10, 4);
+}
+
+function drawFlyingWire(obstacle, y) {
+  context.strokeStyle = '#ff36a5';
+  context.lineWidth = 4;
+  context.beginPath();
+  context.moveTo(obstacle.x, y + obstacle.height / 2);
+  context.bezierCurveTo(
+    obstacle.x + obstacle.width * .28,
+    y - 14,
+    obstacle.x + obstacle.width * .62,
+    y + obstacle.height + 14,
+    obstacle.x + obstacle.width,
+    y + obstacle.height / 2,
+  );
+  context.stroke();
+  context.fillStyle = '#00eaff';
+  context.fillRect(obstacle.x - 3, y + 3, 6, 8);
+  context.fillRect(obstacle.x + obstacle.width - 3, y + 3, 6, 8);
+}
+
+function drawLaserLine(obstacle, y) {
+  context.fillStyle = '#ff36a5';
+  context.fillRect(obstacle.x, y + 4, obstacle.width, 3);
+  context.fillStyle = '#00eaff';
+  context.fillRect(obstacle.x - 5, y, 10, obstacle.height);
+  context.fillRect(obstacle.x + obstacle.width - 5, y, 10, obstacle.height);
+}
+
+function drawObstacle(obstacle) {
+  const y = state.config.groundY - obstacle.y - obstacle.height;
+  context.save();
+  context.fillStyle = '#ff36a5';
+  context.shadowColor = '#ff36a5';
+  context.shadowBlur = 14;
+
+  if (obstacle.type === 'e-waste') drawEWaste(obstacle, y);
+  else if (obstacle.type === 'flying-wire') drawFlyingWire(obstacle, y);
+  else if (obstacle.type === 'laser-line') drawLaserLine(obstacle, y);
+  else drawScrapChip(obstacle, y);
+
   context.restore();
 }
 
@@ -128,7 +190,7 @@ function drawScore(current, best) {
 function drawOverlay(phase) {
   if (phase === 'running') return;
   const title = phase === 'over' ? 'SIGNAL LOST' : phase === 'paused' ? 'PAUSED' : 'PQC RUNNER';
-  const hint = phase === 'over' ? '点击重新开始' : phase === 'paused' ? '点击继续' : '空格 / ↑ / 点击跳跃';
+  const hint = phase === 'over' ? '点击重新开始' : phase === 'paused' ? '点击继续' : '空格 / ↑ 跳跃，↓ 蹲下';
   context.save();
   context.fillStyle = 'rgba(5,4,23,.74)';
   context.fillRect(0, 0, canvas.width, canvas.height);
@@ -148,7 +210,7 @@ function render(current, best) {
   context.fillRect(0, 0, canvas.width, canvas.height);
   drawGrid(current.elapsed);
   drawMoon();
-  drawSkyline();
+  drawChipSkyline();
 
   context.save();
   context.strokeStyle = '#00eaff';
@@ -174,13 +236,19 @@ function start() {
   state = startGame(state);
   lastTime = performance.now();
   pauseButton.textContent = '暂停';
-  setStatus('游戏进行中：躲避故障芯片');
+  setStatus('游戏进行中：跳过废弃芯片，蹲下躲飞线');
   render(state, highScore);
 }
 
 function handleJump() {
   if (state.phase === 'idle' || state.phase === 'over') start();
   state = jump(state);
+}
+
+function setDuck(active) {
+  if (state.phase === 'idle' || state.phase === 'over') return;
+  state = duck(state, active);
+  duckButton.setAttribute('aria-pressed', String(state.player.ducking));
 }
 
 function pause() {
@@ -190,7 +258,7 @@ function pause() {
   }
   state = togglePause(state);
   pauseButton.textContent = state.phase === 'paused' ? '继续' : '暂停';
-  setStatus(state.phase === 'paused' ? '游戏已暂停' : '游戏进行中：躲避故障芯片');
+  setStatus(state.phase === 'paused' ? '游戏已暂停' : '游戏进行中：跳过废弃芯片，蹲下躲飞线');
   lastTime = performance.now();
   render(state, highScore);
 }
@@ -203,6 +271,7 @@ function frame(time) {
 
   if (state.phase === 'over' && previousPhase !== 'over') {
     highScore = scoreStore.save(state.score);
+    duckButton.setAttribute('aria-pressed', 'false');
     setStatus(`游戏结束，得分 ${Math.floor(state.score)}。点击重新开始。`);
   }
 
@@ -218,11 +287,30 @@ function gameIsVisible() {
 startButton.addEventListener('click', start);
 pauseButton.addEventListener('click', pause);
 canvas.addEventListener('pointerdown', handleJump);
+duckButton.addEventListener('pointerdown', (event) => {
+  event.preventDefault();
+  setDuck(true);
+});
+duckButton.addEventListener('pointerup', () => setDuck(false));
+duckButton.addEventListener('pointerleave', () => setDuck(false));
+duckButton.addEventListener('pointercancel', () => setDuck(false));
 
 window.addEventListener('keydown', (event) => {
-  if (!isJumpCommand(event) || !gameIsVisible()) return;
+  if (!gameIsVisible()) return;
+  if (isJumpCommand(event)) {
+    event.preventDefault();
+    handleJump();
+  }
+  if (isDuckCommand(event)) {
+    event.preventDefault();
+    setDuck(true);
+  }
+});
+
+window.addEventListener('keyup', (event) => {
+  if (event.code !== 'ArrowDown') return;
   event.preventDefault();
-  handleJump();
+  setDuck(false);
 });
 
 document.addEventListener('visibilitychange', () => {

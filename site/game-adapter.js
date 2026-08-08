@@ -29,6 +29,10 @@ export function isJumpCommand(event) {
   return !event.repeat && (event.code === 'Space' || event.code === 'ArrowUp');
 }
 
+export function isDuckCommand(event) {
+  return !event.repeat && event.code === 'ArrowDown';
+}
+
 export function formatScore(score) {
   const normalized = Math.min(99999, Math.max(0, Math.floor(Number(score) || 0)));
   return String(normalized).padStart(5, '0');

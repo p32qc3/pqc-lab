@@ -3,14 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="PQC.LAB 项目、技术能力与获奖记录">
+  <meta name="description" content="潘泉承的赛博朋克风格项目网站，展示嵌入式系统、AI 识别、数据建模、竞赛项目与小游戏。">
   <meta name="theme-color" content="#08061c">
-  <title>PQC.LAB // Project Archive</title>
+  <title>潘泉承 // PQC.LAB Project Archive</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
   <a class="skip-link" href="#projects">跳到主要内容</a>
+  <div class="circuit-backdrop" aria-hidden="true">
+    <i></i><i></i><i></i><i></i>
+  </div>
 
   <header class="site-header">
     <a class="brand" href="#top" aria-label="返回首页">PQC<span>.LAB</span></a>
@@ -27,32 +30,40 @@
     <section class="hero" aria-labelledby="hero-title">
       <div class="hero-copy">
         <p class="eyebrow">EMBEDDED SYSTEMS · AI · DATA MODELING</p>
-        <h1 id="hero-title">BUILD FOR<br><span>REALITY.</span></h1>
-        <p class="hero-lead">关注端侧智能、嵌入式原型与数据建模，让算法离开屏幕，在真实世界运行。</p>
+        <h1 id="hero-title">潘泉承<br><span>PQC.LAB</span></h1>
+        <p class="hero-lead">上海理工大学本科生，关注端侧智能、嵌入式原型与数据建模，让算法离开屏幕，在真实世界运行。</p>
+        <dl class="public-profile">
+          <div><dt>身份</dt><dd>电子信息工程本科</dd></div>
+          <div><dt>学校</dt><dd>上海理工大学</dd></div>
+          <div><dt>邮箱</dt><dd><a href="mailto:panquancheng2006@163.com">panquancheng2006@163.com</a></dd></div>
+        </dl>
         <div class="hero-actions">
           <a class="button" href="#projects">查看代表项目</a>
           <a class="button button--ghost" href="#game">开始小游戏</a>
         </div>
       </div>
       <div class="identity-panel" aria-hidden="true">
-        <span class="panel-label">PUBLIC // PROJECT ARCHIVE</span>
-        <span class="panel-code">PQC_LAB</span>
-        <div class="orbit"><span>PQC</span></div>
+        <span class="panel-label">CHIP // PROJECT ARCHIVE</span>
+        <span class="panel-code">PQC_2006</span>
+        <div class="chip-core"><span>PQC</span></div>
         <div class="panel-metrics"><p><strong>6+</strong>PROJECTS</p><p><strong>5</strong>AWARDS</p><p><strong>3</strong>FIELDS</p></div>
       </div>
     </section>
 
-    <div class="ticker" aria-hidden="true"><span>● PSOC EDGE</span><span>● ENVIRONMENT SOUND RECOGNITION</span><span>● PARKING E2E</span><span>● MATLAB / PYTHON</span><span>● 2000+ DATASETS</span></div>
+    <div class="ticker" aria-hidden="true"><span>● PSOC EDGE</span><span>● EDGI-TALK</span><span>● ENVIRONMENT SOUND RECOGNITION</span><span>● PARKING E2E</span><span>● MATLAB / PYTHON</span><span>● CIRCUIT SIGNAL</span></div>
 
     <section id="projects" class="content-section" aria-labelledby="projects-title">
       <header class="section-heading"><div><p>01 / FEATURED WORK</p><h2 id="projects-title">代表项目</h2></div><span>SELECTED_03</span></header>
       <div class="project-grid">
-        <article class="project-card project-card--featured">
+        <article class="project-card project-card--featured project-card--chip">
           <p class="card-index">PROJECT_001</p>
           <div class="sound-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
           <h3>面向听障人士的<br>环境音识别系统</h3>
-          <p>负责采声、声音分析、界面、Wi-Fi 与云端连接，并基于 PSoC Edge 完成端侧识别与交互原型。</p>
+          <p>作为主要负责人，覆盖采声、声音分析、界面、Wi-Fi 与云端连接，并基于 PSoC Edge 完成端侧识别与交互原型。</p>
           <ul class="tag-list"><li>PSoC Edge</li><li>Edge AI</li><li>Wi-Fi</li><li>UI</li></ul>
+          <div class="card-actions">
+            <a class="button button--small" href="https://github.com/p32qc3/Edgi-Talk" target="_blank" rel="noopener noreferrer">查看 GitHub 项目</a>
+          </div>
           <p class="award-chip">东部赛区三等奖</p>
         </article>
         <article class="project-card">
@@ -73,14 +84,15 @@
     </section>
 
     <section id="game" class="content-section game-section" aria-labelledby="game-title">
-      <header class="section-heading"><div><p>02 / PLAYABLE SIGNAL</p><h2 id="game-title">霓虹跑酷</h2></div><span>MINI_GAME_01</span></header>
+      <header class="section-heading"><div><p>02 / PLAYABLE SIGNAL</p><h2 id="game-title">霓虹跑酷</h2></div><span>MINI_GAME_02</span></header>
       <div class="game-frame">
-        <div class="game-hud"><span>PQC RUNNER // ONLINE</span><span>ORIGINAL PIXEL CREATURE</span></div>
-        <canvas id="runner-canvas" width="960" height="360" aria-label="霓虹机械小兽躲避障碍物的游戏"></canvas>
+        <div class="game-hud"><span>PQC RUNNER // ONLINE</span><span>JUMP + DUCK // CHIP HAZARDS</span></div>
+        <canvas id="runner-canvas" width="960" height="360" aria-label="霓虹机械小兽躲避废弃芯片、飞线和激光障碍的游戏"></canvas>
         <div class="game-controls">
           <button id="game-start" type="button">开始 / 重新开始</button>
+          <button id="game-duck" class="button--ghost" type="button">蹲下</button>
           <button id="game-pause" class="button--ghost" type="button">暂停</button>
-          <p id="game-status" role="status" aria-live="polite">按空格键、向上方向键或点击游戏区域跳跃</p>
+          <p id="game-status" role="status" aria-live="polite">空格 / ↑ 跳跃，↓ 或“蹲下”按钮躲飞线</p>
         </div>
       </div>
     </section>
@@ -114,7 +126,7 @@
     </section>
   </main>
 
-  <footer><p>PUBLIC PROJECT ARCHIVE // NO PERSONAL CONTACT DATA</p></footer>
+  <footer><p>PUBLIC PROJECT ARCHIVE // APPROVED CONTACT ONLY</p></footer>
   <script type="module" src="./app.js"></script>
   <script type="module" src="./game.js"></script>
 </body>

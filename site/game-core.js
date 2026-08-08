@@ -7,6 +7,13 @@ const DEFAULTS = Object.freeze({
   maxSpeed: 760,
 });
 
+const OBSTACLE_LIBRARY = Object.freeze([
+  { type: 'scrap-chip', y: 0, width: 34, height: 46 },
+  { type: 'e-waste', y: 0, width: 42, height: 32 },
+  { type: 'flying-wire', y: 36, width: 62, height: 14 },
+  { type: 'laser-line', y: 42, width: 74, height: 10 },
+]);
+
 export function createGame({ seed = 1 } = {}) {
   return {
     phase: 'idle',
@@ -20,8 +27,9 @@ export function createGame({ seed = 1 } = {}) {
       velocityY: 0,
       width: 50,
       height: 47,
+      ducking: false,
     },
-    obstacles: [{ x: DEFAULTS.width + 120, y: 0, width: 28, height: 48 }],
+    obstacles: [{ ...OBSTACLE_LIBRARY[0], x: DEFAULTS.width + 120 }],
     config: DEFAULTS,
   };
 }
@@ -31,12 +39,23 @@ export function startGame(state) {
 }
 
 export function jump(state) {
-  if (state.phase !== 'running' || state.player.y !== 0 || state.player.velocityY !== 0) {
+  if (state.phase !== 'running' || state.player.y !== 0 || state.player.velocityY !== 0 || state.player.ducking) {
     return state;
   }
   return {
     ...state,
     player: { ...state.player, velocityY: state.config.jumpVelocity },
+  };
+}
+
+export function duck(state, active) {
+  if (state.phase !== 'running') return state;
+  return {
+    ...state,
+    player: {
+      ...state.player,
+      ducking: Boolean(active) && state.player.y === 0,
+    },
   };
 }
 
@@ -58,26 +77,47 @@ function nextRandom(seed) {
   return [nextSeed, nextSeed / 4294967296];
 }
 
+function obstacleFromRandom(random) {
+  return OBSTACLE_LIBRARY[Math.floor(random * OBSTACLE_LIBRARY.length) % OBSTACLE_LIBRARY.length];
+}
+
 function spawnObstacle(state, obstacles, seed) {
   const last = obstacles.at(-1);
-  if (last && last.x >= state.config.width - 320) return { obstacles, seed };
+  if (last && last.x >= state.config.width - 300) return { obstacles, seed };
 
   let random;
   [seed, random] = nextRandom(seed);
-  const height = 34 + Math.floor(random * 34);
+  const base = obstacleFromRandom(random);
   [seed, random] = nextRandom(seed);
-  const width = 23 + Math.floor(random * 12);
+  const gap = 125 + random * 205;
   [seed, random] = nextRandom(seed);
-  const gap = 115 + random * 190;
+  const width = base.width + Math.floor(random * 10);
 
   return {
     seed,
     obstacles: [...obstacles, {
+      ...base,
       x: state.config.width + gap,
-      y: 0,
       width,
-      height,
     }],
+  };
+}
+
+function playerCollisionRect(player) {
+  if (player.ducking) {
+    return {
+      x: player.x + 5,
+      y: player.y + 2,
+      width: player.width - 9,
+      height: 25,
+    };
+  }
+
+  return {
+    x: player.x + 7,
+    y: player.y + 2,
+    width: player.width - 12,
+    height: player.height - 4,
   };
 }
 
@@ -91,6 +131,7 @@ function advanceFrame(state, deltaMs) {
   const player = {
     ...state.player,
     y,
+    ducking: y === 0 ? state.player.ducking : false,
     velocityY: y === 0 ? 0 : velocityY,
   };
   const speed = Math.min(state.config.maxSpeed, state.speed + 6 * dt);
@@ -101,12 +142,7 @@ function advanceFrame(state, deltaMs) {
   const spawned = spawnObstacle(state, obstacles, state.seed);
   obstacles = spawned.obstacles;
 
-  const playerRect = {
-    x: player.x + 7,
-    y: player.y + 2,
-    width: player.width - 12,
-    height: player.height - 4,
-  };
+  const playerRect = playerCollisionRect(player);
   const hit = obstacles.some((obstacle) => rectsOverlap(playerRect, obstacle));
 
   return {

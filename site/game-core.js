@@ -81,6 +81,14 @@ function obstacleFromRandom(random) {
   return OBSTACLE_LIBRARY[Math.floor(random * OBSTACLE_LIBRARY.length) % OBSTACLE_LIBRARY.length];
 }
 
+function isDuckRequiredObstacle(obstacle) {
+  return obstacle.type === 'flying-wire' || obstacle.type === 'laser-line';
+}
+
+function rangesOverlap(startA, widthA, startB, widthB) {
+  return startA < startB + widthB && startA + widthA > startB;
+}
+
 function spawnObstacle(state, obstacles, seed) {
   const last = obstacles.at(-1);
   if (last && last.x >= state.config.width - 300) return { obstacles, seed };
@@ -143,7 +151,12 @@ function advanceFrame(state, deltaMs) {
   obstacles = spawned.obstacles;
 
   const playerRect = playerCollisionRect(player);
-  const hit = obstacles.some((obstacle) => rectsOverlap(playerRect, obstacle));
+  const hit = obstacles.some((obstacle) => {
+    if (isDuckRequiredObstacle(obstacle) && rangesOverlap(playerRect.x, playerRect.width, obstacle.x, obstacle.width)) {
+      return !player.ducking || rectsOverlap(playerRect, obstacle);
+    }
+    return rectsOverlap(playerRect, obstacle);
+  });
 
   return {
     ...state,

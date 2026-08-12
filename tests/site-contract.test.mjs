@@ -50,6 +50,18 @@ test('defines the approved neon palette and responsive safeguards', async () => 
   assert.match(css, /\.opening\.opening--reduced\s+\.opening__chip,[\s\S]*?animation:\s*none\s*!important;[\s\S]*?opacity:\s*1;/);
 });
 
+test('provides safe page reveal and hidden-page motion states', async () => {
+  const html = await readFile(indexUrl, 'utf8');
+  const css = await readFile(new URL('../site/styles.css', import.meta.url), 'utf8');
+  const app = await readFile(new URL('../site/app.js', import.meta.url), 'utf8');
+
+  assert.match(html, /data-reveal/);
+  assert.match(css, /\.reveal-ready/);
+  assert.match(css, /\.is-revealed/);
+  assert.match(app, /motion-paused/);
+  assert.match(app, /IntersectionObserver/);
+});
+
 test('provides keyboard navigation landmarks', async () => {
   const html = await readFile(indexUrl, 'utf8');
   assert.match(html, /class="skip-link"/);

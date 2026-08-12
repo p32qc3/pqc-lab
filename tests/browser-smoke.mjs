@@ -49,6 +49,13 @@ try {
     assert.equal(await desktop.locator(`#${id}`).count(), 1, `missing #${id}`);
   }
 
+  await desktop.locator('#projects').scrollIntoViewIfNeeded();
+  await desktop.locator('#projects [data-reveal].is-revealed').first().waitFor();
+  assert.equal(
+    await desktop.locator('#projects [data-reveal]').first().evaluate((node) => node.classList.contains('is-revealed')),
+    true,
+  );
+
   await desktop.mouse.move(1200, 120);
   await desktop.waitForTimeout(80);
   assert.notEqual(

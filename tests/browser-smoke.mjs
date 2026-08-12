@@ -35,6 +35,16 @@ try {
   desktop.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
   await desktop.goto('http://127.0.0.1:4173', { waitUntil: 'networkidle' });
 
+  await desktop.locator('#site-opening:not([hidden])').waitFor();
+  await desktop.locator('#opening-skip').click();
+  await desktop.locator('#site-opening[hidden]').waitFor({ state: 'attached' });
+  assert.match(
+    await desktop.evaluate(() => localStorage.getItem('pqc-opening-completed-date-v1')),
+    /^\d{4}-\d{2}-\d{2}$/,
+  );
+  await desktop.reload({ waitUntil: 'networkidle' });
+  assert.equal(await desktop.locator('#site-opening:not([hidden])').count(), 0);
+
   for (const id of ['projects', 'game', 'skills', 'awards']) {
     assert.equal(await desktop.locator(`#${id}`).count(), 1, `missing #${id}`);
   }
@@ -60,6 +70,27 @@ try {
   assert.equal(await desktop.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), true);
   assert.deepEqual(errors, []);
   console.log('desktop: pass');
+
+  const fullContext = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const fullOpening = await fullContext.newPage();
+  const fullStart = Date.now();
+  await fullOpening.goto('http://127.0.0.1:4173', { waitUntil: 'domcontentloaded' });
+  await fullOpening.locator('#site-opening:not([hidden])').waitFor();
+  await fullOpening.locator('#site-opening[hidden]').waitFor({ state: 'attached', timeout: 4500 });
+  const fullDuration = Date.now() - fullStart;
+  assert.ok(fullDuration >= 2800 && fullDuration < 4500, `full opening should take about 3 seconds, got ${fullDuration}ms`);
+  await fullContext.close();
+
+  const reducedContext = await browser.newContext({
+    viewport: { width: 1280, height: 800 },
+    reducedMotion: 'reduce',
+  });
+  const reducedOpening = await reducedContext.newPage();
+  const reducedStart = Date.now();
+  await reducedOpening.goto('http://127.0.0.1:4173', { waitUntil: 'domcontentloaded' });
+  await reducedOpening.locator('#site-opening[hidden]').waitFor({ state: 'attached', timeout: 1500 });
+  assert.ok(Date.now() - reducedStart < 1500);
+  await reducedContext.close();
 
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   await mobile.goto('http://127.0.0.1:4173', { waitUntil: 'networkidle' });

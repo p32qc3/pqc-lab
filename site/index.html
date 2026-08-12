@@ -11,6 +11,15 @@
 </head>
 <body>
   <a class="skip-link" href="#projects">跳到主要内容</a>
+  <section id="site-opening" class="opening" aria-label="PQC.LAB 开场动画" hidden>
+    <div class="opening__board" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    <div id="opening-chip" class="opening__chip" aria-hidden="true"><span>PQC</span></div>
+    <div id="opening-name" class="opening__identity">
+      <strong>潘泉承</strong>
+      <span>PAN QUANCHENG // PQC.LAB</span>
+    </div>
+    <button id="opening-skip" class="opening__skip" type="button">跳过动画</button>
+  </section>
   <div class="circuit-backdrop" aria-hidden="true">
     <i></i><i></i><i></i><i></i>
   </div>
@@ -127,6 +136,7 @@
   </main>
 
   <footer><p>PUBLIC PROJECT ARCHIVE // APPROVED CONTACT ONLY</p></footer>
+  <script type="module" src="./opening.js"></script>
   <script type="module" src="./app.js"></script>
   <script type="module" src="./game.js"></script>
 </body>

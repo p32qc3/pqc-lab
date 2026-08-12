@@ -11,6 +11,15 @@ test('publishes every approved section and game control', async () => {
   }
 });
 
+test('publishes the chip awakening opening controls', async () => {
+  const html = await readFile(indexUrl, 'utf8');
+  for (const id of ['site-opening', 'opening-chip', 'opening-name', 'opening-skip']) {
+    assert.match(html, new RegExp(`id=["']${id}["']`), `missing #${id}`);
+  }
+  assert.match(html, /src="\.\/opening\.js"/);
+  assert.match(html, /跳过动画/);
+});
+
 test('publishes approved identity and project link only', async () => {
   const html = await readFile(indexUrl, 'utf8');
   assert.match(html, /潘泉承/);
@@ -27,6 +36,7 @@ test('publishes approved identity and project link only', async () => {
 test('loads only local styles and modules', async () => {
   const html = await readFile(indexUrl, 'utf8');
   assert.match(html, /href="\.\/styles\.css"/);
+  assert.match(html, /src="\.\/opening\.js"/);
   assert.match(html, /src="\.\/app\.js"/);
   assert.match(html, /src="\.\/game\.js"/);
 });
@@ -49,8 +59,9 @@ test('keeps background interaction static and local only', async () => {
   const html = await readFile(indexUrl, 'utf8');
   const app = await readFile(new URL('../site/app.js', import.meta.url), 'utf8');
   const game = await readFile(new URL('../site/game.js', import.meta.url), 'utf8');
+  const opening = await readFile(new URL('../site/opening.js', import.meta.url), 'utf8');
 
   assert.match(html, /class="circuit-backdrop"/);
   assert.match(app, /--signal-x/);
-  assert.doesNotMatch(`${html}\n${app}\n${game}`, /\bfetch\s*\(|WebSocket|EventSource/i);
+  assert.doesNotMatch(`${html}\n${app}\n${game}\n${opening}`, /\bfetch\s*\(|WebSocket|EventSource/i);
 });

@@ -63,11 +63,13 @@ try {
     '50%',
   );
 
+  await desktop.locator('#game').scrollIntoViewIfNeeded();
   await desktop.locator('#game-start').click();
-  await desktop.keyboard.press('Space');
-  await desktop.keyboard.press('ArrowDown');
-  await desktop.waitForTimeout(180);
-  await desktop.keyboard.up('ArrowDown');
+  await desktop.keyboard.down('s');
+  assert.equal(await desktop.locator('#game-duck').getAttribute('aria-pressed'), 'true');
+  await desktop.keyboard.up('s');
+  assert.equal(await desktop.locator('#game-duck').getAttribute('aria-pressed'), 'false');
+  await desktop.keyboard.press('w');
   assert.match(await desktop.locator('#game-status').innerText(), /游戏进行中/);
   assert.equal(await desktop.evaluate(() => {
     const canvas = document.querySelector('#runner-canvas');
@@ -111,10 +113,32 @@ try {
 
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   await mobile.goto('http://127.0.0.1:4173', { waitUntil: 'networkidle' });
-  await mobile.locator('#runner-canvas').tap();
-  await mobile.locator('#game-duck').tap();
-  await mobile.waitForTimeout(180);
+  await mobile.locator('#game-start').tap();
+  await mobile.locator('#game-jump').tap();
+  await mobile.locator('#game-duck').dispatchEvent('pointerdown', { pointerId: 7, pointerType: 'touch' });
+  assert.equal(await mobile.locator('#game-duck').getAttribute('aria-pressed'), 'true');
+  await mobile.waitForTimeout(250);
+  assert.equal(await mobile.locator('#game-duck').getAttribute('aria-pressed'), 'true');
+  await mobile.locator('#game-duck').dispatchEvent('pointerup', { pointerId: 7, pointerType: 'touch' });
+  assert.equal(await mobile.locator('#game-duck').getAttribute('aria-pressed'), 'false');
+  await mobile.locator('#game-duck').dispatchEvent('pointerdown', { pointerId: 8, pointerType: 'touch' });
+  await mobile.locator('#game-duck').dispatchEvent('pointercancel', { pointerId: 8, pointerType: 'touch' });
+  assert.equal(await mobile.locator('#game-duck').getAttribute('aria-pressed'), 'false');
+  await mobile.locator('#game-duck').dispatchEvent('pointerdown', { pointerId: 9, pointerType: 'touch' });
+  await mobile.locator('#game-duck').dispatchEvent('lostpointercapture', { pointerId: 9, pointerType: 'touch' });
+  assert.equal(await mobile.locator('#game-duck').getAttribute('aria-pressed'), 'false');
   assert.match(await mobile.locator('#game-status').innerText(), /游戏进行中/);
+  await mobile.locator('#game-duck').dispatchEvent('pointerdown', { pointerId: 10, pointerType: 'touch' });
+  await mobile.evaluate(() => window.dispatchEvent(new Event('blur')));
+  assert.equal(await mobile.locator('#game-duck').getAttribute('aria-pressed'), 'false');
+  await mobile.locator('#game-duck').dispatchEvent('pointerdown', { pointerId: 11, pointerType: 'touch' });
+  await mobile.evaluate(() => {
+    Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  assert.equal(await mobile.locator('#game-duck').getAttribute('aria-pressed'), 'false');
+  assert.equal(await mobile.locator('#game-pause').innerText(), '继续');
+  assert.match(await mobile.locator('#game-status').innerText(), /游戏已暂停/);
   assert.equal(await mobile.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), true);
   console.log('mobile: pass');
   console.log('game controls: pass');

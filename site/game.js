@@ -10,12 +10,14 @@ import {
   createHighScoreStore,
   formatScore,
   isDuckCommand,
+  isDuckReleaseCommand,
   isJumpCommand,
 } from './game-adapter.js';
 
 const canvas = document.querySelector('#runner-canvas');
 const context = canvas.getContext('2d');
 const startButton = document.querySelector('#game-start');
+const jumpButton = document.querySelector('#game-jump');
 const duckButton = document.querySelector('#game-duck');
 const pauseButton = document.querySelector('#game-pause');
 const status = document.querySelector('#game-status');
@@ -190,7 +192,7 @@ function drawScore(current, best) {
 function drawOverlay(phase) {
   if (phase === 'running') return;
   const title = phase === 'over' ? 'SIGNAL LOST' : phase === 'paused' ? 'PAUSED' : 'PQC RUNNER';
-  const hint = phase === 'over' ? '点击重新开始' : phase === 'paused' ? '点击继续' : '空格 / ↑ 跳跃，↓ 蹲下';
+  const hint = phase === 'over' ? '点击重新开始' : phase === 'paused' ? '点击继续' : 'W 跳跃，按住 S 蹲下';
   context.save();
   context.fillStyle = 'rgba(5,4,23,.74)';
   context.fillRect(0, 0, canvas.width, canvas.height);
@@ -246,9 +248,12 @@ function handleJump() {
 }
 
 function setDuck(active) {
-  if (state.phase === 'idle' || state.phase === 'over') return;
   state = duck(state, active);
-  duckButton.setAttribute('aria-pressed', String(state.player.ducking));
+  duckButton.setAttribute('aria-pressed', String(state.player.duckRequested));
+}
+
+function releaseDuck() {
+  setDuck(false);
 }
 
 function pause() {
@@ -271,7 +276,7 @@ function frame(time) {
 
   if (state.phase === 'over' && previousPhase !== 'over') {
     highScore = scoreStore.save(state.score);
-    duckButton.setAttribute('aria-pressed', 'false');
+    releaseDuck();
     setStatus(`游戏结束，得分 ${Math.floor(state.score)}。点击重新开始。`);
   }
 
@@ -287,13 +292,23 @@ function gameIsVisible() {
 startButton.addEventListener('click', start);
 pauseButton.addEventListener('click', pause);
 canvas.addEventListener('pointerdown', handleJump);
+jumpButton.addEventListener('pointerdown', (event) => {
+  event.preventDefault();
+  handleJump();
+});
 duckButton.addEventListener('pointerdown', (event) => {
   event.preventDefault();
+  try {
+    duckButton.setPointerCapture?.(event.pointerId);
+  } catch {
+    // Synthetic test events may not represent an active platform pointer.
+  }
   setDuck(true);
 });
-duckButton.addEventListener('pointerup', () => setDuck(false));
-duckButton.addEventListener('pointerleave', () => setDuck(false));
-duckButton.addEventListener('pointercancel', () => setDuck(false));
+duckButton.addEventListener('pointerup', releaseDuck);
+duckButton.addEventListener('pointercancel', releaseDuck);
+duckButton.addEventListener('lostpointercapture', releaseDuck);
+window.addEventListener('blur', releaseDuck);
 
 window.addEventListener('keydown', (event) => {
   if (!gameIsVisible()) return;
@@ -308,13 +323,15 @@ window.addEventListener('keydown', (event) => {
 });
 
 window.addEventListener('keyup', (event) => {
-  if (event.code !== 'ArrowDown') return;
+  if (!isDuckReleaseCommand(event)) return;
   event.preventDefault();
-  setDuck(false);
+  releaseDuck();
 });
 
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden && state.phase === 'running') pause();
+  if (!document.hidden) return;
+  releaseDuck();
+  if (state.phase === 'running') pause();
 });
 
 render(state, highScore);

@@ -6,9 +6,10 @@ const indexUrl = new URL('../site/index.html', import.meta.url);
 
 test('publishes every approved section and game control', async () => {
   const html = await readFile(indexUrl, 'utf8');
-  for (const id of ['projects', 'game', 'skills', 'awards', 'runner-canvas', 'game-start', 'game-pause', 'game-duck']) {
+  for (const id of ['projects', 'game', 'skills', 'awards', 'runner-canvas', 'game-start', 'game-jump', 'game-pause', 'game-duck']) {
     assert.match(html, new RegExp(`id=["']${id}["']`), `missing #${id}`);
   }
+  assert.match(html, /电脑：W 跳跃，按住 S 蹲下/);
 });
 
 test('publishes the chip awakening opening controls', async () => {

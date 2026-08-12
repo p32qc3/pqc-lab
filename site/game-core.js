@@ -28,6 +28,7 @@ export function createGame({ seed = 1 } = {}) {
       width: 50,
       height: 47,
       ducking: false,
+      duckRequested: false,
     },
     obstacles: [{ ...OBSTACLE_LIBRARY[0], x: DEFAULTS.width + 120 }],
     config: DEFAULTS,
@@ -49,12 +50,18 @@ export function jump(state) {
 }
 
 export function duck(state, active) {
-  if (state.phase !== 'running') return state;
+  const duckRequested = Boolean(active);
+  if (state.phase !== 'running' && duckRequested) return state;
+  if (!duckRequested && !state.player.duckRequested && !state.player.ducking) return state;
   return {
     ...state,
     player: {
       ...state.player,
-      ducking: Boolean(active) && state.player.y === 0,
+      duckRequested,
+      ducking: duckRequested
+        && state.phase === 'running'
+        && state.player.y === 0
+        && state.player.velocityY === 0,
     },
   };
 }
@@ -136,11 +143,12 @@ function advanceFrame(state, deltaMs) {
     + state.player.velocityY * dt
     + .5 * state.config.gravity * dt * dt;
   const y = Math.max(0, nextY);
+  const grounded = y === 0;
   const player = {
     ...state.player,
     y,
-    ducking: y === 0 ? state.player.ducking : false,
-    velocityY: y === 0 ? 0 : velocityY,
+    ducking: grounded && state.player.duckRequested,
+    velocityY: grounded ? 0 : velocityY,
   };
   const speed = Math.min(state.config.maxSpeed, state.speed + 6 * dt);
   let obstacles = state.obstacles

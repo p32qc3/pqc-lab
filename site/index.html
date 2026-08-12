@@ -95,13 +95,16 @@
     <section id="game" class="content-section game-section" aria-labelledby="game-title">
       <header class="section-heading" data-reveal><div><p>02 / PLAYABLE SIGNAL</p><h2 id="game-title">霓虹跑酷</h2></div><span>MINI_GAME_02</span></header>
       <div class="game-frame">
-        <div class="game-hud"><span>PQC RUNNER // ONLINE</span><span>JUMP + DUCK // CHIP HAZARDS</span></div>
+        <div class="game-hud"><span>PQC RUNNER // ONLINE</span><span>W + S // CHIP HAZARDS</span></div>
         <canvas id="runner-canvas" width="960" height="360" aria-label="霓虹机械小兽躲避废弃芯片、飞线和激光障碍的游戏"></canvas>
         <div class="game-controls">
           <button id="game-start" type="button">开始 / 重新开始</button>
-          <button id="game-duck" class="button--ghost" type="button">蹲下</button>
+          <div class="game-actions" aria-label="游戏动作">
+            <button id="game-jump" class="button--ghost" type="button">跳跃 <kbd>W</kbd></button>
+            <button id="game-duck" class="button--ghost" type="button" aria-pressed="false">蹲下 <kbd>S</kbd></button>
+          </div>
           <button id="game-pause" class="button--ghost" type="button">暂停</button>
-          <p id="game-status" role="status" aria-live="polite">空格 / ↑ 跳跃，↓ 或“蹲下”按钮躲飞线</p>
+          <p id="game-status" role="status" aria-live="polite">电脑：W 跳跃，按住 S 蹲下；手机：使用下方两个按钮</p>
         </div>
       </div>
     </section>

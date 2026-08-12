@@ -113,7 +113,7 @@ body > :not(.circuit-backdrop):not(.opening) {
 .opening.is-playing .opening__identity { animation: opening-name 2.8s .15s ease both; }
 .opening.opening--reduced .opening__board { display: none; }
 .opening.opening--reduced .opening__chip,
-.opening.opening--reduced .opening__identity { animation-duration: .4s; animation-delay: 0s; }
+.opening.opening--reduced .opening__identity { animation: none !important; opacity: 1; transform: none; }
 @keyframes opening-chip { 0%, 15% { opacity: 0; transform: scale(.72); } 42%, 80% { opacity: 1; transform: scale(1); box-shadow: 0 0 46px rgba(0,234,255,.22); } 100% { opacity: 0; transform: scale(1.06); } }
 @keyframes opening-name { 0%, 42% { opacity: 0; transform: translateY(14px); letter-spacing: .35em; } 62%, 82% { opacity: 1; transform: none; letter-spacing: normal; } 100% { opacity: 0; } }
 @keyframes opening-signal { 0% { opacity: 0; transform: scaleX(0); } 28%, 72% { opacity: 1; transform: scaleX(1); box-shadow: 0 0 16px var(--cyan); } 100% { opacity: 0; transform: scaleX(1); } }

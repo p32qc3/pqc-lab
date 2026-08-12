@@ -88,6 +88,16 @@ try {
   const reducedOpening = await reducedContext.newPage();
   const reducedStart = Date.now();
   await reducedOpening.goto('http://127.0.0.1:4173', { waitUntil: 'domcontentloaded' });
+  await reducedOpening.locator('#site-opening:not([hidden])').waitFor();
+  await reducedOpening.waitForFunction(() => {
+    const selectors = ['#opening-chip', '#opening-name'];
+    return selectors.every((selector) => {
+      const element = document.querySelector(selector);
+      return element
+        && getComputedStyle(element).opacity === '1'
+        && element.getClientRects().length > 0;
+    });
+  }, undefined, { timeout: 250 });
   await reducedOpening.locator('#site-opening[hidden]').waitFor({ state: 'attached', timeout: 1500 });
   assert.ok(Date.now() - reducedStart < 1500);
   await reducedContext.close();

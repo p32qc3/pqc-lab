@@ -47,6 +47,7 @@ test('defines the approved neon palette and responsive safeguards', async () => 
   assert.match(css, /--magenta:\s*#ff36a5/i);
   assert.match(css, /@media\s*\(max-width:\s*760px\)/i);
   assert.match(css, /prefers-reduced-motion:\s*reduce/i);
+  assert.match(css, /\.opening\.opening--reduced\s+\.opening__chip,[\s\S]*?animation:\s*none\s*!important;[\s\S]*?opacity:\s*1;/);
 });
 
 test('provides keyboard navigation landmarks', async () => {

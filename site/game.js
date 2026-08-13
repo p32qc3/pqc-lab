@@ -343,16 +343,24 @@ window.addEventListener('keyup', (event) => {
 });
 
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden) return;
-  releaseDuck();
-  if (state.phase === 'running') pause();
+  if (document.hidden) {
+    releaseDuck();
+    if (state.phase === 'running') pause();
+    return;
+  }
+  lastTime = performance.now();
+  if (state.phase === 'running') scheduleFrame();
+  else render(state, highScore);
 });
 
 if ('IntersectionObserver' in window) {
   const visibilityObserver = new IntersectionObserver(([entry]) => {
     canvasInView = entry.isIntersecting;
     lastTime = performance.now();
-    if (canvasInView) scheduleFrame();
+    if (canvasInView) {
+      if (state.phase === 'running') scheduleFrame();
+      else render(state, highScore);
+    }
     else {
       releaseDuck();
       if (animationFrame) cancelAnimationFrame(animationFrame);

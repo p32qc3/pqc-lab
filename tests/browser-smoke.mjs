@@ -45,6 +45,14 @@ function trackPageErrors(page, errors) {
   page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
 }
 
+async function runnerHasStandingHead(page) {
+  return page.evaluate(() => {
+    const context = document.querySelector('#runner-canvas').getContext('2d');
+    const [, green, , alpha] = context.getImageData(150, 260, 1, 1).data;
+    return green > 40 && alpha === 255;
+  });
+}
+
 const browser = await chromium.launch({
   headless: true,
   executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined,
@@ -137,6 +145,62 @@ try {
   assert.ok(pausedDraws <= 1, `paused canvas rendered ${pausedDraws} times in 350ms`);
   assert.ok(overDraws <= 1, `finished canvas rendered ${overDraws} times in 350ms`);
   assert.ok(frameP95 < 120, `animation frame p95 was ${frameP95}ms`);
+
+  await desktop.locator('#game-start').click();
+  await desktop.keyboard.down('s');
+  await desktop.waitForFunction(() => {
+    const context = document.querySelector('#runner-canvas').getContext('2d');
+    const [, green] = context.getImageData(150, 260, 1, 1).data;
+    return green !== 234;
+  });
+  await desktop.locator('#game-pause').click();
+  const offscreenBefore = await desktop.evaluate(() => window.__runnerClearCount);
+  await desktop.locator('#projects').scrollIntoViewIfNeeded();
+  await desktop.locator('#game-duck[aria-pressed="false"]').waitFor();
+  const offscreenAfterRelease = await desktop.evaluate(() => window.__runnerClearCount);
+  await desktop.locator('#runner-canvas').scrollIntoViewIfNeeded();
+  await desktop.waitForTimeout(200);
+  const offscreenAfterReturn = await desktop.evaluate(() => window.__runnerClearCount);
+  const offscreenStanding = await runnerHasStandingHead(desktop);
+  await desktop.waitForTimeout(350);
+  const offscreenAfterSettled = await desktop.evaluate(() => window.__runnerClearCount);
+  await desktop.keyboard.up('s');
+
+  await desktop.locator('#game-start').click();
+  await desktop.keyboard.down('s');
+  await desktop.waitForFunction(() => {
+    const context = document.querySelector('#runner-canvas').getContext('2d');
+    const [, green] = context.getImageData(150, 260, 1, 1).data;
+    return green !== 234;
+  });
+  await desktop.locator('#game-pause').click();
+  const hiddenBefore = await desktop.evaluate(() => window.__runnerClearCount);
+  await desktop.evaluate(() => {
+    Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  assert.equal(await desktop.locator('#game-duck').getAttribute('aria-pressed'), 'false');
+  const hiddenAfterRelease = await desktop.evaluate(() => window.__runnerClearCount);
+  await desktop.evaluate(() => {
+    Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await desktop.waitForTimeout(200);
+  const hiddenAfterReturn = await desktop.evaluate(() => window.__runnerClearCount);
+  const hiddenStanding = await runnerHasStandingHead(desktop);
+  await desktop.waitForTimeout(350);
+  const hiddenAfterSettled = await desktop.evaluate(() => window.__runnerClearCount);
+  await desktop.keyboard.up('s');
+
+  console.log(`paused visibility: offscreen=${offscreenBefore}/${offscreenAfterRelease}/${offscreenAfterReturn}/${offscreenAfterSettled} hidden=${hiddenBefore}/${hiddenAfterRelease}/${hiddenAfterReturn}/${hiddenAfterSettled}`);
+  assert.equal(offscreenAfterRelease, offscreenBefore, 'offscreen release should wait to redraw until visible');
+  assert.equal(offscreenAfterReturn, offscreenAfterRelease + 1, 'returning onscreen should redraw paused standing state once');
+  assert.equal(offscreenStanding, true, 'returned paused canvas should show the standing runner');
+  assert.equal(offscreenAfterSettled, offscreenAfterReturn, 'returned paused canvas should not continue animating');
+  assert.equal(hiddenAfterRelease, hiddenBefore, 'hidden release should wait to redraw until visible');
+  assert.equal(hiddenAfterReturn, hiddenAfterRelease + 1, 'returning to the page should redraw paused standing state once');
+  assert.equal(hiddenStanding, true, 'restored paused canvas should show the standing runner');
+  assert.equal(hiddenAfterSettled, hiddenAfterReturn, 'restored paused canvas should not continue animating');
   assert.deepEqual(errors, []);
   console.log('desktop: pass');
 

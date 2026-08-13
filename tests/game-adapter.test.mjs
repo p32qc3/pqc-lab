@@ -6,6 +6,7 @@ import {
   isDuckCommand,
   isDuckReleaseCommand,
   isJumpCommand,
+  normalizeFrameDelta,
 } from '../site/game-adapter.js';
 
 test('high score store keeps the greatest completed score', () => {
@@ -52,4 +53,12 @@ test('score display is padded and integer-only', () => {
   assert.equal(formatScore(42.9), '00042');
   assert.equal(formatScore(-2), '00000');
   assert.equal(formatScore(123456), '99999');
+});
+
+test('frame delta rejects invalid values and caps long stalls', () => {
+  assert.equal(normalizeFrameDelta(16), 16);
+  assert.equal(normalizeFrameDelta(5000), 100);
+  assert.equal(normalizeFrameDelta(-4), 0);
+  assert.equal(normalizeFrameDelta(Number.NaN), 0);
+  assert.equal(normalizeFrameDelta(80, 50), 50);
 });

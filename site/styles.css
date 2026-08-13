@@ -707,6 +707,12 @@ a:focus-visible {
   cursor: pointer;
 }
 
+#game-start,
+#game-jump,
+#game-pause { touch-action: manipulation; }
+
+#game-duck { touch-action: none; }
+
 .game-controls {
   display: flex;
   flex-wrap: wrap;
@@ -905,10 +911,6 @@ footer {
   }
   .game-hud { font-size: .58rem; }
   .game-hud span:last-child { display: none; }
-  #runner-canvas {
-    min-height: 220px;
-    object-fit: cover;
-  }
   .game-controls button { flex: 1 1 110px; }
   .game-actions {
     order: -1;
@@ -918,7 +920,6 @@ footer {
   .game-actions button {
     min-height: 58px;
     font-size: .9rem;
-    touch-action: none;
   }
   #game-status { text-align: center; }
   .skill-grid { grid-template-columns: 1fr; }

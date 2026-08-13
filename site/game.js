@@ -12,6 +12,7 @@ import {
   isDuckCommand,
   isDuckReleaseCommand,
   isJumpCommand,
+  normalizeFrameDelta,
 } from './game-adapter.js';
 
 const canvas = document.querySelector('#runner-canvas');
@@ -22,24 +23,33 @@ const duckButton = document.querySelector('#game-duck');
 const pauseButton = document.querySelector('#game-pause');
 const status = document.querySelector('#game-status');
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const compactRendering = window.matchMedia('(max-width: 760px)').matches;
 const scoreStore = createHighScoreStore(window.localStorage);
+const moonGradient = context.createRadialGradient(780, 70, 8, 780, 70, 76);
+moonGradient.addColorStop(0, 'rgba(255,54,165,.34)');
+moonGradient.addColorStop(.52, 'rgba(111,31,130,.15)');
+moonGradient.addColorStop(.55, 'rgba(255,54,165,.26)');
+moonGradient.addColorStop(.58, 'rgba(255,54,165,0)');
 
 let state = createGame();
 let highScore = scoreStore.load();
 let lastTime = 0;
+let animationFrame = 0;
+let canvasInView = true;
 
 function drawGrid(elapsed) {
-  const offset = reducedMotion ? 0 : -((elapsed * .06) % 48);
+  const gridStep = compactRendering ? 64 : 48;
+  const offset = reducedMotion ? 0 : -((elapsed * .06) % gridStep);
   context.save();
   context.strokeStyle = 'rgba(0,234,255,.075)';
   context.lineWidth = 1;
-  for (let x = offset; x <= canvas.width; x += 48) {
+  for (let x = offset; x <= canvas.width; x += gridStep) {
     context.beginPath();
     context.moveTo(x, 0);
     context.lineTo(x, canvas.height);
     context.stroke();
   }
-  for (let y = 0; y <= canvas.height; y += 48) {
+  for (let y = 0; y <= canvas.height; y += gridStep) {
     context.beginPath();
     context.moveTo(0, y);
     context.lineTo(canvas.width, y);
@@ -71,12 +81,7 @@ function drawChipSkyline() {
 }
 
 function drawMoon() {
-  const gradient = context.createRadialGradient(780, 70, 8, 780, 70, 76);
-  gradient.addColorStop(0, 'rgba(255,54,165,.34)');
-  gradient.addColorStop(.52, 'rgba(111,31,130,.15)');
-  gradient.addColorStop(.55, 'rgba(255,54,165,.26)');
-  gradient.addColorStop(.58, 'rgba(255,54,165,0)');
-  context.fillStyle = gradient;
+  context.fillStyle = moonGradient;
   context.beginPath();
   context.arc(780, 70, 76, 0, Math.PI * 2);
   context.fill();
@@ -94,7 +99,7 @@ function drawRunner(player) {
   context.save();
   context.fillStyle = '#00eaff';
   context.shadowColor = '#00eaff';
-  context.shadowBlur = 14;
+  context.shadowBlur = compactRendering ? 7 : 14;
 
   if (ducking) {
     context.fillRect(x + 6, y + 7, 42, 18);
@@ -168,7 +173,7 @@ function drawObstacle(obstacle) {
   context.save();
   context.fillStyle = '#ff36a5';
   context.shadowColor = '#ff36a5';
-  context.shadowBlur = 14;
+  context.shadowBlur = compactRendering ? 7 : 14;
 
   if (obstacle.type === 'e-waste') drawEWaste(obstacle, y);
   else if (obstacle.type === 'flying-wire') drawFlyingWire(obstacle, y);
@@ -234,12 +239,18 @@ function setStatus(message) {
   status.textContent = message;
 }
 
+function scheduleFrame() {
+  if (animationFrame || state.phase !== 'running' || !canvasInView || document.hidden) return;
+  animationFrame = requestAnimationFrame(frame);
+}
+
 function start() {
   state = startGame(state);
   lastTime = performance.now();
   pauseButton.textContent = '暂停';
   setStatus('游戏进行中：跳过废弃芯片，蹲下躲飞线');
   render(state, highScore);
+  scheduleFrame();
 }
 
 function handleJump() {
@@ -266,10 +277,13 @@ function pause() {
   setStatus(state.phase === 'paused' ? '游戏已暂停' : '游戏进行中：跳过废弃芯片，蹲下躲飞线');
   lastTime = performance.now();
   render(state, highScore);
+  scheduleFrame();
 }
 
 function frame(time) {
-  const delta = lastTime ? time - lastTime : 0;
+  animationFrame = 0;
+  if (!canvasInView || document.hidden || state.phase !== 'running') return;
+  const delta = lastTime ? normalizeFrameDelta(time - lastTime) : 0;
   lastTime = time;
   const previousPhase = state.phase;
   state = stepGame(state, delta);
@@ -281,7 +295,7 @@ function frame(time) {
   }
 
   render(state, highScore);
-  requestAnimationFrame(frame);
+  scheduleFrame();
 }
 
 function gameIsVisible() {
@@ -334,5 +348,18 @@ document.addEventListener('visibilitychange', () => {
   if (state.phase === 'running') pause();
 });
 
+if ('IntersectionObserver' in window) {
+  const visibilityObserver = new IntersectionObserver(([entry]) => {
+    canvasInView = entry.isIntersecting;
+    lastTime = performance.now();
+    if (canvasInView) scheduleFrame();
+    else {
+      releaseDuck();
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+      animationFrame = 0;
+    }
+  }, { rootMargin: '120px 0px' });
+  visibilityObserver.observe(canvas);
+}
+
 render(state, highScore);
-requestAnimationFrame(frame);

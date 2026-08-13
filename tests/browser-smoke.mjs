@@ -22,6 +22,29 @@ async function waitForServer() {
   throw new Error('local site did not start');
 }
 
+async function trackRunnerRenders(page) {
+  await page.addInitScript(() => {
+    window.__runnerClearCount = 0;
+    const originalGetContext = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function getContext(...args) {
+      const context = originalGetContext.apply(this, args);
+      if (this.id !== 'runner-canvas' || args[0] !== '2d' || context.__runnerClearInstrumented) return context;
+      const originalClearRect = context.clearRect.bind(context);
+      context.clearRect = (...clearArgs) => {
+        window.__runnerClearCount += 1;
+        return originalClearRect(...clearArgs);
+      };
+      context.__runnerClearInstrumented = true;
+      return context;
+    };
+  });
+}
+
+function trackPageErrors(page, errors) {
+  page.on('pageerror', (error) => errors.push(error.message));
+  page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
+}
+
 const browser = await chromium.launch({
   headless: true,
   executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined,
@@ -30,9 +53,9 @@ const browser = await chromium.launch({
 try {
   await waitForServer();
   const desktop = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+  await trackRunnerRenders(desktop);
   const errors = [];
-  desktop.on('pageerror', (error) => errors.push(error.message));
-  desktop.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
+  trackPageErrors(desktop, errors);
   await desktop.goto('http://127.0.0.1:4173', { waitUntil: 'networkidle' });
 
   await desktop.locator('#site-opening:not([hidden])').waitFor();
@@ -44,6 +67,10 @@ try {
   );
   await desktop.reload({ waitUntil: 'networkidle' });
   assert.equal(await desktop.locator('#site-opening:not([hidden])').count(), 0);
+
+  const idleStart = await desktop.evaluate(() => window.__runnerClearCount);
+  await desktop.waitForTimeout(1000);
+  const idleDraws = await desktop.evaluate((start) => window.__runnerClearCount - start, idleStart);
 
   for (const id of ['projects', 'game', 'skills', 'awards']) {
     assert.equal(await desktop.locator(`#${id}`).count(), 1, `missing #${id}`);
@@ -65,10 +92,37 @@ try {
 
   await desktop.locator('#game').scrollIntoViewIfNeeded();
   await desktop.locator('#game-start').click();
+  const runningStart = await desktop.evaluate(() => window.__runnerClearCount);
+  await desktop.waitForTimeout(250);
+  const runningDraws = await desktop.evaluate((start) => window.__runnerClearCount - start, runningStart);
+  const frameP95 = await desktop.evaluate(() => new Promise((resolve) => {
+    const deltas = [];
+    let previous = 0;
+    function sample(time) {
+      if (previous) deltas.push(time - previous);
+      previous = time;
+      if (deltas.length < 60) requestAnimationFrame(sample);
+      else {
+        deltas.sort((a, b) => a - b);
+        resolve(deltas[Math.floor(deltas.length * .95)]);
+      }
+    }
+    requestAnimationFrame(sample);
+  }));
   await desktop.keyboard.down('s');
   assert.equal(await desktop.locator('#game-duck').getAttribute('aria-pressed'), 'true');
   await desktop.keyboard.up('s');
   assert.equal(await desktop.locator('#game-duck').getAttribute('aria-pressed'), 'false');
+  await desktop.locator('#game-pause').click();
+  const pausedStart = await desktop.evaluate(() => window.__runnerClearCount);
+  await desktop.waitForTimeout(350);
+  const pausedDraws = await desktop.evaluate((start) => window.__runnerClearCount - start, pausedStart);
+  await desktop.locator('#game-pause').click();
+  await desktop.locator('#game-status').filter({ hasText: '游戏结束' }).waitFor({ timeout: 8000 });
+  const overStart = await desktop.evaluate(() => window.__runnerClearCount);
+  await desktop.waitForTimeout(350);
+  const overDraws = await desktop.evaluate((start) => window.__runnerClearCount - start, overStart);
+  await desktop.locator('#game-start').click();
   await desktop.keyboard.press('w');
   assert.match(await desktop.locator('#game-status').innerText(), /游戏进行中/);
   assert.equal(await desktop.evaluate(() => {
@@ -77,11 +131,18 @@ try {
     return pixels.some((value, index) => index % 4 === 3 && value > 0);
   }), true, 'canvas should render opaque pixels');
   assert.equal(await desktop.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), true);
+  console.log(`runner frames: idle=${idleDraws}/s running=${runningDraws}/250ms paused=${pausedDraws}/350ms over=${overDraws}/350ms p95=${frameP95.toFixed(2)}ms`);
+  assert.ok(idleDraws <= 1, `idle canvas rendered ${idleDraws} times in one second`);
+  assert.ok(runningDraws >= 4, `running canvas rendered only ${runningDraws} times in 250ms`);
+  assert.ok(pausedDraws <= 1, `paused canvas rendered ${pausedDraws} times in 350ms`);
+  assert.ok(overDraws <= 1, `finished canvas rendered ${overDraws} times in 350ms`);
+  assert.ok(frameP95 < 120, `animation frame p95 was ${frameP95}ms`);
   assert.deepEqual(errors, []);
   console.log('desktop: pass');
 
   const fullContext = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const fullOpening = await fullContext.newPage();
+  trackPageErrors(fullOpening, errors);
   const fullStart = Date.now();
   await fullOpening.goto('http://127.0.0.1:4173', { waitUntil: 'domcontentloaded' });
   await fullOpening.locator('#site-opening:not([hidden])').waitFor();
@@ -95,6 +156,7 @@ try {
     reducedMotion: 'reduce',
   });
   const reducedOpening = await reducedContext.newPage();
+  trackPageErrors(reducedOpening, errors);
   const reducedStart = Date.now();
   await reducedOpening.goto('http://127.0.0.1:4173', { waitUntil: 'domcontentloaded' });
   await reducedOpening.locator('#site-opening:not([hidden])').waitFor();
@@ -112,7 +174,15 @@ try {
   await reducedContext.close();
 
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  trackPageErrors(mobile, errors);
   await mobile.goto('http://127.0.0.1:4173', { waitUntil: 'networkidle' });
+  const mobileCanvas = await mobile.locator('#runner-canvas').evaluate((canvas) => {
+    const rect = canvas.getBoundingClientRect();
+    return { width: rect.width, height: rect.height, ratio: rect.width / rect.height };
+  });
+  assert.ok(Math.abs(mobileCanvas.ratio - (8 / 3)) < .05, `mobile canvas ratio was ${mobileCanvas.ratio}`);
+  assert.equal(await mobile.locator('#game-jump').evaluate((button) => getComputedStyle(button).touchAction), 'manipulation');
+  assert.equal(await mobile.locator('#game-duck').evaluate((button) => getComputedStyle(button).touchAction), 'none');
   await mobile.locator('#game-start').tap();
   await mobile.locator('#game-jump').tap();
   await mobile.locator('#game-duck').dispatchEvent('pointerdown', { pointerId: 7, pointerType: 'touch' });
@@ -140,6 +210,8 @@ try {
   assert.equal(await mobile.locator('#game-pause').innerText(), '继续');
   assert.match(await mobile.locator('#game-status').innerText(), /游戏已暂停/);
   assert.equal(await mobile.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), true);
+  assert.deepEqual(errors, []);
+  console.log(`mobile canvas: ${mobileCanvas.width}x${mobileCanvas.height} ratio=${mobileCanvas.ratio.toFixed(3)}`);
   console.log('mobile: pass');
   console.log('game controls: pass');
 } finally {

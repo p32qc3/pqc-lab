@@ -4,7 +4,9 @@ import {
   createHighScoreStore,
   formatScore,
   isDuckCommand,
+  isDuckReleaseCommand,
   isJumpCommand,
+  normalizeFrameDelta,
 } from '../site/game-adapter.js';
 
 test('high score store keeps the greatest completed score', () => {
@@ -30,21 +32,33 @@ test('high score store falls back safely when storage is blocked', () => {
   assert.equal(scores.save(24), 24);
 });
 
-test('jump command accepts first Space or ArrowUp press only', () => {
+test('jump command leads with W and keeps compatible controls', () => {
+  assert.equal(isJumpCommand({ code: 'KeyW', repeat: false }), true);
   assert.equal(isJumpCommand({ code: 'Space', repeat: false }), true);
   assert.equal(isJumpCommand({ code: 'ArrowUp', repeat: false }), true);
-  assert.equal(isJumpCommand({ code: 'Space', repeat: true }), false);
+  assert.equal(isJumpCommand({ code: 'KeyW', repeat: true }), false);
   assert.equal(isJumpCommand({ code: 'Enter', repeat: false }), false);
 });
 
-test('duck command accepts ArrowDown without repeat', () => {
+test('duck press and release accept S and ArrowDown', () => {
+  assert.equal(isDuckCommand({ code: 'KeyS', repeat: false }), true);
   assert.equal(isDuckCommand({ code: 'ArrowDown', repeat: false }), true);
-  assert.equal(isDuckCommand({ code: 'ArrowDown', repeat: true }), false);
-  assert.equal(isDuckCommand({ code: 'Space', repeat: false }), false);
+  assert.equal(isDuckCommand({ code: 'KeyS', repeat: true }), false);
+  assert.equal(isDuckReleaseCommand({ code: 'KeyS' }), true);
+  assert.equal(isDuckReleaseCommand({ code: 'ArrowDown' }), true);
+  assert.equal(isDuckReleaseCommand({ code: 'Space' }), false);
 });
 
 test('score display is padded and integer-only', () => {
   assert.equal(formatScore(42.9), '00042');
   assert.equal(formatScore(-2), '00000');
   assert.equal(formatScore(123456), '99999');
+});
+
+test('frame delta rejects invalid values and caps long stalls', () => {
+  assert.equal(normalizeFrameDelta(16), 16);
+  assert.equal(normalizeFrameDelta(5000), 100);
+  assert.equal(normalizeFrameDelta(-4), 0);
+  assert.equal(normalizeFrameDelta(Number.NaN), 0);
+  assert.equal(normalizeFrameDelta(80, 50), 50);
 });

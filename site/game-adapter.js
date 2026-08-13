@@ -25,12 +25,25 @@ export function createHighScoreStore(storage, key = 'pqc-runner-high-score-v1') 
   return { load, save };
 }
 
+const JUMP_CODES = new Set(['KeyW', 'Space', 'ArrowUp']);
+const DUCK_CODES = new Set(['KeyS', 'ArrowDown']);
+
 export function isJumpCommand(event) {
-  return !event.repeat && (event.code === 'Space' || event.code === 'ArrowUp');
+  return !event.repeat && JUMP_CODES.has(event.code);
 }
 
 export function isDuckCommand(event) {
-  return !event.repeat && event.code === 'ArrowDown';
+  return !event.repeat && DUCK_CODES.has(event.code);
+}
+
+export function isDuckReleaseCommand(event) {
+  return DUCK_CODES.has(event.code);
+}
+
+export function normalizeFrameDelta(deltaMs, maxMs = 100) {
+  const value = Number(deltaMs);
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  return Math.min(value, Math.max(1, Number(maxMs) || 100));
 }
 
 export function formatScore(score) {

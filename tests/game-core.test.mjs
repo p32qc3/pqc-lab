@@ -25,6 +25,20 @@ test('jump applies upward velocity once while grounded', () => {
   assert.deepEqual(jump(airborne), airborne);
 });
 
+test('jumping clears ground obstacles', () => {
+  const jumping = {
+    ...jump(startGame(createGame({ seed: 7 }))),
+    player: {
+      ...jump(startGame(createGame({ seed: 7 }))).player,
+      y: 90,
+      velocityY: 600,
+    },
+    obstacles: [{ type: 'scrap-chip', x: 125, y: 0, width: 34, height: 46 }],
+  };
+
+  assert.equal(stepGame(jumping, 16).phase, 'running');
+});
+
 test('ducking lowers the collision body so flying wires can pass overhead', () => {
   const wire = { type: 'flying-wire', x: 125, y: 36, width: 58, height: 14 };
   const standing = {
@@ -49,6 +63,24 @@ test('jumping into flying hazards still ends the run', () => {
   };
 
   assert.equal(stepGame(jumping, 16).phase, 'over');
+});
+
+test('held duck request applies on landing and clears even while paused', () => {
+  const airborne = jump(startGame(createGame({ seed: 7 })));
+  const requested = duck(airborne, true);
+  assert.equal(requested.player.ducking, false);
+  assert.equal(requested.player.duckRequested, true);
+
+  const landed = stepGame({
+    ...requested,
+    obstacles: [{ type: 'scrap-chip', x: 5000, y: 0, width: 34, height: 46 }],
+  }, 1000);
+  assert.equal(landed.player.y, 0);
+  assert.equal(landed.player.ducking, true);
+
+  const released = duck(togglePause(landed), false);
+  assert.equal(released.player.ducking, false);
+  assert.equal(released.player.duckRequested, false);
 });
 
 test('time advances score and speed without tunnelling through frames', () => {

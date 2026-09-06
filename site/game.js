@@ -10,7 +10,6 @@ import {
   createHighScoreStore,
   formatScore,
   isDuckCommand,
-  isDuckReleaseCommand,
   isJumpCommand,
   normalizeFrameDelta,
 } from './game-adapter.js';
@@ -24,7 +23,13 @@ const pauseButton = document.querySelector('#game-pause');
 const status = document.querySelector('#game-status');
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const compactRendering = window.matchMedia('(max-width: 760px)').matches;
-const scoreStore = createHighScoreStore(window.localStorage);
+let browserStorage;
+try {
+  browserStorage = window.localStorage;
+} catch {
+  // Some privacy policies block access to the storage object itself.
+}
+const scoreStore = createHighScoreStore(browserStorage);
 const moonGradient = context.createRadialGradient(780, 70, 8, 780, 70, 76);
 moonGradient.addColorStop(0, 'rgba(255,54,165,.34)');
 moonGradient.addColorStop(.52, 'rgba(111,31,130,.15)');
@@ -36,6 +41,7 @@ let highScore = scoreStore.load();
 let lastTime = 0;
 let animationFrame = 0;
 let canvasInView = true;
+const duckInputs = new Set();
 
 function drawGrid(elapsed) {
   const gridStep = compactRendering ? 64 : 48;
@@ -246,6 +252,7 @@ function scheduleFrame() {
 
 function start() {
   state = startGame(state);
+  releaseDuck();
   lastTime = performance.now();
   pauseButton.textContent = '暂停';
   setStatus('游戏进行中：跳过废弃芯片，蹲下躲飞线');
@@ -263,7 +270,19 @@ function setDuck(active) {
   duckButton.setAttribute('aria-pressed', String(state.player.duckRequested));
 }
 
+function setDuckInput(source, active) {
+  if (active && state.phase !== 'running') return;
+  if (active) duckInputs.add(source);
+  else duckInputs.delete(source);
+  setDuck(duckInputs.size > 0);
+}
+
+function releaseDuckPointer(event) {
+  setDuckInput(`pointer:${event.pointerId}`, false);
+}
+
 function releaseDuck() {
+  duckInputs.clear();
   setDuck(false);
 }
 
@@ -310,6 +329,9 @@ jumpButton.addEventListener('pointerdown', (event) => {
   event.preventDefault();
   handleJump();
 });
+jumpButton.addEventListener('click', (event) => {
+  if (event.detail === 0) handleJump();
+});
 duckButton.addEventListener('pointerdown', (event) => {
   event.preventDefault();
   try {
@@ -317,29 +339,38 @@ duckButton.addEventListener('pointerdown', (event) => {
   } catch {
     // Synthetic test events may not represent an active platform pointer.
   }
-  setDuck(true);
+  setDuckInput(`pointer:${event.pointerId}`, true);
 });
-duckButton.addEventListener('pointerup', releaseDuck);
-duckButton.addEventListener('pointercancel', releaseDuck);
-duckButton.addEventListener('lostpointercapture', releaseDuck);
+duckButton.addEventListener('pointerup', releaseDuckPointer);
+duckButton.addEventListener('pointercancel', releaseDuckPointer);
+duckButton.addEventListener('lostpointercapture', releaseDuckPointer);
 window.addEventListener('blur', releaseDuck);
 
 window.addEventListener('keydown', (event) => {
-  if (!gameIsVisible()) return;
+  if (!gameIsVisible() || event.defaultPrevented || event.isComposing || event.altKey || event.ctrlKey || event.metaKey) return;
+  const target = event.target;
+  if (target instanceof HTMLElement && (target.isContentEditable || target.closest('input, textarea, select'))) return;
+  if (target === duckButton && (event.code === 'Space' || event.code === 'Enter')) {
+    event.preventDefault();
+    if (!event.repeat) setDuckInput(`key:${event.code}`, true);
+    return;
+  }
+  if (event.code === 'Space' && target instanceof Element && target.closest('button, a')) return;
+  if (state.phase !== 'running' && ['Space', 'ArrowUp', 'ArrowDown'].includes(event.code)) return;
   if (isJumpCommand(event)) {
     event.preventDefault();
     handleJump();
   }
   if (isDuckCommand(event)) {
     event.preventDefault();
-    setDuck(true);
+    setDuckInput(`key:${event.code}`, true);
   }
 });
 
 window.addEventListener('keyup', (event) => {
-  if (!isDuckReleaseCommand(event)) return;
+  if (!duckInputs.has(`key:${event.code}`)) return;
   event.preventDefault();
-  releaseDuck();
+  setDuckInput(`key:${event.code}`, false);
 });
 
 document.addEventListener('visibilitychange', () => {
